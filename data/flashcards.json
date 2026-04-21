@@ -1,0 +1,92 @@
+[
+  {
+    "topic": "Netzwerke",
+    "cardType": "flip",
+    "question": "Was ist der Unterschied zwischen TCP und UDP?",
+    "questionImage": null,
+    "answer": "TCP ist verbindungsorientiert und garantiert die Zustellung (3-Way-Handshake). UDP ist verbindungslos, schneller, aber ohne Zustellgarantie.",
+    "answerImage": null,
+    "options": null,
+    "sortOrder": 1
+  },
+  {
+    "topic": "Netzwerke",
+    "cardType": "flip",
+    "question": "Wie viele Schichten hat das OSI-Modell und wie heißen sie?",
+    "questionImage": null,
+    "answer": "7 Schichten: Physikalisch, Sicherung, Vermittlung, Transport, Sitzung, Darstellung, Anwendung.",
+    "answerImage": null,
+    "options": null,
+    "sortOrder": 2
+  },
+  {
+    "topic": "Netzwerke",
+    "cardType": "multiple-choice",
+    "question": "Welches Protokoll arbeitet auf Schicht 4 (Transport) des OSI-Modells?",
+    "questionImage": null,
+    "answer": "TCP",
+    "answerImage": null,
+    "options": ["IP", "TCP", "HTTP", "Ethernet"],
+    "sortOrder": 1
+  },
+  {
+    "topic": "Netzwerke",
+    "cardType": "multiple-choice",
+    "question": "Welcher Port wird standardmäßig von HTTPS verwendet?",
+    "questionImage": null,
+    "answer": "443",
+    "answerImage": null,
+    "options": ["80", "8080", "443", "22"],
+    "sortOrder": 2
+  },
+  {
+    "topic": "Netzwerke",
+    "cardType": "fill-in",
+    "question": "Das OSI-Modell besteht aus ___ Schichten.",
+    "questionImage": null,
+    "answer": "7",
+    "answerImage": null,
+    "options": null,
+    "sortOrder": 3
+  },
+  {
+    "topic": "Netzwerke",
+    "cardType": "fill-in",
+    "question": "HTTP steht für Hypertext ___ Protocol.",
+    "questionImage": null,
+    "answer": "Transfer",
+    "answerImage": null,
+    "options": null,
+    "sortOrder": 4
+  },
+  {
+    "topic": "Datenschutz",
+    "cardType": "flip",
+    "question": "Was regelt die DSGVO?",
+    "questionImage": null,
+    "answer": "Die DSGVO (Datenschutz-Grundverordnung) regelt den Umgang mit personenbezogenen Daten in der EU und gibt Betroffenen Rechte wie Auskunft, Löschung und Berichtigung.",
+    "answerImage": null,
+    "options": null,
+    "sortOrder": 1
+  },
+  {
+    "topic": "Datenschutz",
+    "cardType": "multiple-choice",
+    "question": "Wie lange gilt die DSGVO bereits in der EU?",
+    "questionImage": null,
+    "answer": "Seit 2018",
+    "answerImage": null,
+    "options": ["Seit 2015", "Seit 2018", "Seit 2020", "Seit 2022"],
+    "sortOrder": 1
+  },
+  {
+    "topic": "Datenschutz",
+    "cardType": "fill-in",
+    "question": "DSGVO steht für Datenschutz-_____-Verordnung.",
+    "questionImage": null,
+    "answer": "Grundverordnung",
+    "answerImage": null,
+    "options": null,
+    "sortOrder": 2
+  }
+]
