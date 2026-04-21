@@ -21,7 +21,7 @@ export default async function StudyPage({ params, searchParams }: Props) {
   const session = await auth()
   const userId = session!.user.id
 
-  const cardTypeFilter = mode === "learn" ? ["flip"] : ["multiple-choice", "fill-in"]
+  const cardTypeFilter: ("flip" | "multiple-choice" | "fill-in")[] = mode === "learn" ? ["flip"] : ["multiple-choice", "fill-in"]
 
   const cards = await db
     .select()

@@ -51,14 +51,14 @@ export async function updateProgress(
   if (existing) {
     await db
       .update(userProgress)
-      .set({ status, updatedAt: Date.now() })
+      .set({ status, updatedAt: new Date(Date.now()) })
       .where(eq(userProgress.id, existing.id))
   } else {
     await db.insert(userProgress).values({
       userId,
       flashcardId,
       status,
-      updatedAt: Date.now(),
+      updatedAt: new Date(Date.now()),
     })
   }
 
