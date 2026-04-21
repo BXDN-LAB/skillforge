@@ -29,7 +29,8 @@ export default async function StudyPage({ params, searchParams }: Props) {
     .where(
       and(
         eq(flashcards.topic, topic),
-        inArray(flashcards.cardType, cardTypeFilter)
+        inArray(flashcards.cardType, cardTypeFilter),
+        eq(flashcards.isReported, false)
       )
     )
     .orderBy(flashcards.sortOrder)
