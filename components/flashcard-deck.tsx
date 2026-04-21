@@ -1,6 +1,6 @@
 "use client"
 import { useState } from "react"
-import { updateProgress } from "@/app/actions"
+import { updateProgress, recordTestAttempt, reportCard } from "@/app/actions"
 import { isCorrectAnswer } from "@/lib/answer"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -20,6 +20,9 @@ export function FlashCardDeck({ cards, topic, mode }: Props) {
   const [fillInput, setFillInput] = useState("")
   const [result, setResult] = useState<"correct" | "wrong" | null>(null)
   const [saving, setSaving] = useState(false)
+  const [showReportModal, setShowReportModal] = useState(false)
+  const [reportReason, setReportReason] = useState("")
+  const [isReporting, setIsReporting] = useState(false)
 
   const card = cards[index]
   const isLast = index === cards.length - 1
@@ -44,6 +47,11 @@ export function FlashCardDeck({ cards, topic, mode }: Props) {
   }
 
   async function handleCheckAnswer(correct: boolean) {
+    // Record test attempt for scoring
+    if (mode === "test") {
+      await recordTestAttempt(card.id, correct)
+    }
+
     setResult(correct ? "correct" : "wrong")
     const status: ProgressStatus = correct ? "learned" : "review"
     setSaving(true)
@@ -51,231 +59,262 @@ export function FlashCardDeck({ cards, topic, mode }: Props) {
     setSaving(false)
   }
 
-  function handleNext() {
-    if (isLast) {
-      setIndex(cards.length)
-    } else {
-      setIndex((i) => i + 1)
-      resetCard()
+  async function handleAnswer() {
+    if (card.cardType === "multiple-choice" && selectedOption !== null) {
+      const correct = selectedOption === card.answer
+      await handleCheckAnswer(correct)
+    } else if (card.cardType === "fill-in") {
+      const correct = isCorrectAnswer(fillInput, card.answer)
+      await handleCheckAnswer(correct)
     }
   }
 
-  // Completion screen
+  async function handleReportCard() {
+    if (!card) return
+
+    setIsReporting(true)
+    try {
+      await reportCard(card.id, reportReason || undefined)
+      setShowReportModal(false)
+      setReportReason("")
+
+      // Move to next card
+      const nextIndex = index + 1
+      if (nextIndex < cards.length) {
+        setIndex(nextIndex)
+        resetCard()
+      } else {
+        setIndex(cards.length)
+      }
+    } catch (error) {
+      console.error("Failed to report card:", error)
+      alert("Failed to report card. Please try again.")
+    } finally {
+      setIsReporting(false)
+    }
+  }
+
   if (index >= cards.length) {
     return (
-      <div className="flex flex-col items-center gap-6 py-16 text-center">
-        <p className="text-4xl">✓</p>
-        <div>
-          <p className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Session complete</p>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-            You went through all {cards.length} cards.
+      <div className="flex flex-col items-center justify-center min-h-screen bg-white dark:bg-zinc-950">
+        <div className="text-center">
+          <h1 className="text-4xl font-bold mb-2">🎉 Complete!</h1>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
+            You finished all cards in {topic} ({mode} mode).
           </p>
-        </div>
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={() => { setIndex(0); resetCard() }}>
-            Restart
-          </Button>
-          <Link href="/dashboard">
-            <Button>Back to dashboard</Button>
-          </Link>
+          <div className="flex gap-4 justify-center">
+            <Link href="/topics">
+              <Button>Back to Topics</Button>
+            </Link>
+            <Link href="/dashboard">
+              <Button variant="outline">Dashboard</Button>
+            </Link>
+          </div>
         </div>
       </div>
     )
   }
 
+  const isMultipleChoice = card.cardType === "multiple-choice"
+  const isFillIn = card.cardType === "fill-in"
+  const isFlip = card.cardType === "flip"
+
   return (
-    <div className="flex flex-col gap-4">
-      {/* Progress bar */}
-      <div className="flex items-center justify-between">
-        <Link href="/topics" className="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50">
-          ← {topic}
-        </Link>
-        <span className="text-sm text-zinc-500 dark:text-zinc-400">
-          {index + 1} / {cards.length}
-        </span>
-      </div>
-      <div className="h-1 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
-        <div
-          className="h-full bg-zinc-900 dark:bg-zinc-50 rounded-full transition-all duration-300"
-          style={{ width: `${((index + 1) / cards.length) * 100}%` }}
-        />
-      </div>
+    <div className="flex flex-col items-center justify-center min-h-screen bg-white dark:bg-zinc-950 p-4">
+      <div className="w-full max-w-2xl">
+        <div className="mb-4 text-sm text-gray-500 dark:text-gray-400">
+          Card {index + 1} / {cards.length}
+        </div>
 
-      {/* Mode chip */}
-      <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-        {mode === "learn" ? "Learn" : "Test"}
-      </span>
-
-      {/* FLIP card */}
-      {card.cardType === "flip" && (
-        <>
-          <button
-            onClick={() => setFlipped((f) => !f)}
-            className="w-full min-h-52 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 flex flex-col items-center justify-center gap-4 text-center cursor-pointer hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors"
-            aria-label={flipped ? "Tap to show question" : "Tap to reveal answer"}
-          >
-            {card.questionImage && !flipped && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={card.questionImage} alt="" className="max-h-32 object-contain" />
-            )}
-            <p className="text-base font-medium text-zinc-900 dark:text-zinc-50 leading-relaxed">
-              {flipped ? card.answer : card.question}
-            </p>
-            {card.answerImage && flipped && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={card.answerImage} alt="" className="max-h-32 object-contain" />
-            )}
-            {!flipped && (
-              <p className="text-xs text-zinc-400 dark:text-zinc-500">Tap to reveal answer</p>
-            )}
-          </button>
-
-          {flipped && (
-            <div className="flex gap-3">
-              <Button
-                variant="outline"
-                className="flex-1"
-                disabled={saving}
-                onClick={() => handleProgress("review")}
-              >
-                Review later
-              </Button>
-              <Button
-                className="flex-1"
-                disabled={saving}
-                onClick={() => handleProgress("learned")}
-              >
-                Got it ✓
-              </Button>
+        <div className="bg-zinc-100 dark:bg-zinc-800 rounded-lg p-8 min-h-96 flex flex-col justify-center items-center mb-6 cursor-pointer shadow-lg">
+          {isFlip && (
+            <div onClick={() => setFlipped(!flipped)}>
+              <div className="text-center">
+                {!flipped ? (
+                  <>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                      Click to reveal
+                    </p>
+                    <p className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
+                      {card.question}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                      Answer
+                    </p>
+                    <p className="text-2xl font-semibold text-green-600 dark:text-green-400">
+                      {card.answer}
+                    </p>
+                  </>
+                )}
+              </div>
             </div>
           )}
-        </>
-      )}
 
-      {/* MULTIPLE CHOICE card */}
-      {card.cardType === "multiple-choice" && (
-        <>
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 text-center">
-            {card.questionImage && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={card.questionImage} alt="" className="max-h-32 object-contain mx-auto mb-4" />
-            )}
-            <p className="text-base font-medium text-zinc-900 dark:text-zinc-50 leading-relaxed">
-              {card.question}
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            {(card.options ?? []).map((opt, i) => {
-              const letter = ["A", "B", "C", "D"][i]
-              const isSelected = selectedOption === opt
-              const isCorrect = result !== null && opt === card.answer
-              const isWrong = result !== null && isSelected && opt !== card.answer
-
-              return (
-                <button
-                  key={opt}
-                  disabled={result !== null}
-                  onClick={() => setSelectedOption(opt)}
-                  className={[
-                    "flex items-center gap-3 w-full px-4 py-3 rounded-xl border text-left text-sm transition-colors",
-                    isCorrect
-                      ? "border-green-500 bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300"
-                      : isWrong
-                      ? "border-red-400 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300"
-                      : isSelected
-                      ? "border-zinc-900 dark:border-zinc-50 bg-zinc-900 dark:bg-zinc-50 text-white dark:text-zinc-900"
-                      : "border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:border-zinc-400 dark:hover:border-zinc-600",
-                  ].join(" ")}
-                >
-                  <span className={[
-                    "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0",
-                    isSelected && result === null
-                      ? "bg-white/20 text-white dark:text-zinc-900"
-                      : "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400",
-                  ].join(" ")}>
-                    {letter}
-                  </span>
-                  {opt}
-                </button>
-              )
-            })}
-          </div>
-
-          {result === null ? (
-            <Button
-              disabled={!selectedOption || saving}
-              onClick={() => handleCheckAnswer(selectedOption === card.answer)}
-            >
-              Check answer
-            </Button>
-          ) : (
-            <div className="flex flex-col gap-2">
-              <p className={`text-sm font-semibold text-center ${result === "correct" ? "text-green-600 dark:text-green-400" : "text-red-500 dark:text-red-400"}`}>
-                {result === "correct" ? "✓ Correct!" : "✗ Wrong — the correct answer is shown above."}
+          {isMultipleChoice && (
+            <div className="w-full">
+              <p className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-6 text-center">
+                {card.question}
               </p>
-              <Button onClick={handleNext} disabled={saving}>
-                {isLast ? "Finish" : "Next →"}
-              </Button>
+              <div className="space-y-3">
+                {card.options?.map((option) => (
+                  <button
+                    key={option}
+                    onClick={() => setSelectedOption(option)}
+                    disabled={result !== null}
+                    className={`w-full p-4 text-left rounded border-2 transition ${
+                      selectedOption === option
+                        ? "border-blue-500 bg-blue-50 dark:bg-blue-900"
+                        : "border-gray-300 dark:border-zinc-600"
+                    } ${
+                      result !== null && option === card.answer
+                        ? "border-green-500 bg-green-50 dark:bg-green-900"
+                        : result !== null && selectedOption === option
+                          ? "border-red-500 bg-red-50 dark:bg-red-900"
+                          : ""
+                    }`}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
-        </>
-      )}
 
-      {/* FILL-IN card */}
-      {card.cardType === "fill-in" && (
-        <>
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 text-center">
-            {card.questionImage && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={card.questionImage} alt="" className="max-h-32 object-contain mx-auto mb-4" />
-            )}
-            <p className="text-base font-medium text-zinc-900 dark:text-zinc-50 leading-relaxed">
-              {card.question.replace("___", "___________")}
-            </p>
-          </div>
+          {isFillIn && (
+            <div className="w-full">
+              <p className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-6 text-center">
+                {card.question}
+              </p>
+              <p className="text-gray-600 dark:text-gray-400 text-center mb-4">
+                Answer: {card.answer.replace(/./g, "_")}
+              </p>
+              <Input
+                type="text"
+                value={fillInput}
+                onChange={(e) => setFillInput(e.target.value)}
+                placeholder="Type your answer..."
+                disabled={result !== null}
+                className="mb-4"
+              />
+            </div>
+          )}
+        </div>
 
-          <Input
-            value={fillInput}
-            onChange={(e) => setFillInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && result === null && fillInput.trim()) {
-                handleCheckAnswer(isCorrectAnswer(fillInput, card.answer))
-              } else if (e.key === "Enter" && result !== null) {
-                handleNext()
-              }
-            }}
-            placeholder="Your answer…"
-            disabled={result !== null}
-            className={
+        {result !== null && (
+          <div
+            className={`p-4 rounded-lg mb-6 text-center font-semibold ${
               result === "correct"
-                ? "border-green-500 bg-green-50 dark:bg-green-950"
-                : result === "wrong"
-                ? "border-red-400 bg-red-50 dark:bg-red-950"
-                : ""
-            }
-          />
+                ? "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100"
+                : "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-100"
+            }`}
+          >
+            {result === "correct" ? "✓ Correct!" : "✗ Wrong"}
+            {result === "wrong" && isFillIn && (
+              <p className="text-sm mt-2">Correct answer: {card.answer}</p>
+            )}
+          </div>
+        )}
 
-          {result === null ? (
-            <Button
-              disabled={!fillInput.trim() || saving}
-              onClick={() => handleCheckAnswer(isCorrectAnswer(fillInput, card.answer))}
-            >
-              Submit
+        <div className="flex gap-4 justify-center mb-6">
+          {isFlip && !flipped && (
+            <Button onClick={() => setFlipped(true)} variant="outline">
+              Reveal
             </Button>
-          ) : (
-            <div className="flex flex-col gap-2">
-              <p className={`text-sm font-semibold text-center ${result === "correct" ? "text-green-600 dark:text-green-400" : "text-red-500 dark:text-red-400"}`}>
-                {result === "correct"
-                  ? "✓ Correct!"
-                  : `✗ Wrong — correct answer: "${card.answer}"`}
-              </p>
-              <Button onClick={handleNext} disabled={saving}>
-                {isLast ? "Finish" : "Next →"}
-              </Button>
-            </div>
           )}
-        </>
+
+          {(isFlip || result !== null) && (
+            <>
+              {isFlip && (
+                <>
+                  <Button
+                    onClick={() => handleProgress("learned")}
+                    disabled={saving}
+                  >
+                    Got it
+                  </Button>
+                  <Button
+                    onClick={() => handleProgress("review")}
+                    variant="outline"
+                    disabled={saving}
+                  >
+                    Review later
+                  </Button>
+                </>
+              )}
+              {(isMultipleChoice || isFillIn) && (
+                <Button
+                  onClick={() => {
+                    if (isLast) {
+                      setIndex(cards.length)
+                    } else {
+                      setIndex((i) => i + 1)
+                      resetCard()
+                    }
+                  }}
+                  disabled={saving}
+                >
+                  {isLast ? "Finish" : "Next"}
+                </Button>
+              )}
+            </>
+          )}
+
+          {!result && (isMultipleChoice || isFillIn) && (
+            <Button onClick={handleAnswer} disabled={saving || !selectedOption && isFillIn && !fillInput}>
+              Check
+            </Button>
+          )}
+        </div>
+
+        <div className="text-center">
+          <button
+            onClick={() => setShowReportModal(true)}
+            className="text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 underline"
+          >
+            🚩 Report Card
+          </button>
+        </div>
+      </div>
+
+      {showReportModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-zinc-900 rounded-lg p-6 max-w-md w-full">
+            <h2 className="text-xl font-bold mb-2">Report Card</h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              Is this card incorrect or misleading? Let us know what's wrong.
+            </p>
+
+            <textarea
+              value={reportReason}
+              onChange={(e) => setReportReason(e.target.value)}
+              placeholder="Optional: Explain what's wrong (e.g., answer is outdated, question is unclear)"
+              className="w-full p-3 border rounded bg-white dark:bg-zinc-800 text-black dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+              rows={4}
+            />
+
+            <div className="flex gap-4 justify-end">
+              <button
+                onClick={() => {
+                  setShowReportModal(false)
+                  setReportReason("")
+                }}
+                className="px-4 py-2 text-gray-700 dark:text-gray-300 border rounded hover:bg-gray-100 dark:hover:bg-zinc-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleReportCard}
+                disabled={isReporting}
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+              >
+                {isReporting ? "Reporting..." : "Report Card"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
