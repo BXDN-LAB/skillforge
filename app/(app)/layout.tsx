@@ -25,6 +25,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             >
               Topics
             </Link>
+            <Link
+              href="/leaderboard"
+              className="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50 transition-colors"
+            >
+              Leaderboard
+            </Link>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-zinc-500 dark:text-zinc-400 hidden sm:block">
