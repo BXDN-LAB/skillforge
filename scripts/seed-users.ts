@@ -10,6 +10,7 @@ const db = drizzle(sqlite, { schema })
 const USERS = [
   { username: "admin", name: "Admin", password: "admin123" },
   { username: "max", name: "Max Mustermann", password: "test123" },
+  { username: "dino", name: "Dino", password: "dino123" },
 ]
 
 async function main() {
