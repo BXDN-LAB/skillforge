@@ -182,13 +182,206 @@ All data stored in `skillforge.db` (SQLite):
 
 ---
 
+## Deployment
+
+### Local Development with HTTPS
+
+For testing HTTPS locally without browser warnings:
+
+```bash
+# Install mkcert (generates self-signed certificates)
+# macOS
+brew install mkcert
+# Ubuntu/Debian
+sudo apt install mkcert
+
+# Create local CA and certificate
+mkcert -install
+mkcert localhost 127.0.0.1
+
+# Move certs to project
+mkdir -p certs
+mv localhost+1-key.pem certs/
+mv localhost+1.pem certs/
+
+# Run with HTTPS (requires next.js custom server or `npm run dev` with NODE_TLS_REJECT_UNAUTHORIZED=0)
+NODE_TLS_REJECT_UNAUTHORIZED=0 npm run dev
+```
+
+Open `https://localhost:3000` (browser will warn about cert, click "Advanced" → "Proceed")
+
+### Production Deployment (Ubuntu/Debian)
+
+#### 1. Server Setup
+
+```bash
+# SSH into your server
+ssh user@your-domain.com
+
+# Install Node.js 20 LTS
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
+
+# Install nginx
+sudo apt install -y nginx
+
+# Install certbot for Let's Encrypt
+sudo apt install -y certbot python3-certbot-nginx
+```
+
+#### 2. Application Setup
+
+```bash
+# Clone repository
+git clone https://github.com/BXDN-LAB/skillforge.git /opt/skillforge
+cd /opt/skillforge
+
+# Install dependencies
+npm ci --omit=dev
+
+# Create .env.production
+cp .env.example .env.production
+# Edit with your values
+nano .env.production
+```
+
+**`.env.production` template:**
+```
+AUTH_SECRET=your-long-random-string-here
+DATABASE_URL=file:./skillforge.db
+NODE_ENV=production
+```
+
+#### 3. Nginx Configuration
+
+Create `/etc/nginx/sites-available/skillforge`:
+
+```nginx
+upstream nextjs_skillforge {
+  server 127.0.0.1:3000;
+}
+
+server {
+  listen 80;
+  server_name your-domain.com;
+  location /.well-known/acme-challenge/ {
+    root /var/www/certbot;
+  }
+  location / {
+    return 301 https://$server_name$request_uri;
+  }
+}
+
+server {
+  listen 443 ssl http2;
+  server_name your-domain.com;
+
+  ssl_certificate /etc/letsencrypt/live/your-domain.com/fullchain.pem;
+  ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
+  ssl_protocols TLSv1.2 TLSv1.3;
+  ssl_ciphers HIGH:!aNULL:!MD5;
+
+  # Forward requests to Next.js
+  location / {
+    proxy_pass http://nextjs_skillforge;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection 'upgrade';
+    proxy_set_header Host $host;
+    proxy_cache_bypass $http_upgrade;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+}
+```
+
+Enable the site:
+```bash
+sudo ln -s /etc/nginx/sites-available/skillforge /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl restart nginx
+```
+
+#### 4. SSL Certificate (Let's Encrypt)
+
+```bash
+sudo certbot certonly --nginx -d your-domain.com
+# Answer prompts, cert will be installed at /etc/letsencrypt/live/your-domain.com/
+```
+
+#### 5. PM2 Process Manager
+
+```bash
+# Install PM2 globally
+sudo npm install -g pm2
+
+# Start application
+cd /opt/skillforge
+pm2 start npm --name "skillforge" -- start
+
+# Save PM2 config to auto-restart on reboot
+pm2 startup
+pm2 save
+```
+
+#### 6. Verify
+
+```bash
+# Check PM2 status
+pm2 status
+
+# Check nginx status
+sudo systemctl status nginx
+
+# Test SSL
+curl -I https://your-domain.com
+```
+
+---
+
+## NEEDS DONE
+
+These features are planned but not yet implemented:
+
+### Phase 2: PDF Import + LLM Integration
+
+- [ ] **PDF Text Extraction** (`lib/pdf.ts`)
+  - Use `pdfjs-dist` to extract text from uploaded PDFs
+  - Parse structure (headings, paragraphs, tables)
+  - Output structured JSON for card generation
+
+- [ ] **LLM Service** (`lib/llm.ts`)
+  - Integrate with **Ollama** (local open-source LLM)
+  - Accept extracted text → generate flashcard Q&A pairs
+  - Support batch and streaming generation
+
+- [ ] **PDF Import CLI** (`scripts/import-pdf.ts`)
+  - Command: `npm run import:pdf <path> <topic> [--auto]`
+  - `--auto` flag: use Ollama to generate cards automatically
+  - Without flag: extract text only (manual creation later)
+  - Insert generated cards into database
+
+- [ ] **README PDF Usage Guide**
+  - How to install and run Ollama locally
+  - Example workflows: extract-only vs. auto-generate
+  - Recommended LLM models for flashcard generation
+
+### Phase 3: Admin Features (Future)
+
+- [ ] **Admin Dashboard** (topic management, user management)
+- [ ] **Web UI for PDF Upload** (instead of CLI-only)
+- [ ] **Progress Export** (CSV, JSON)
+
+---
+
 ## Out of Scope
 
 - Spaced repetition algorithm
 - User self-registration
 - Image upload UI (images placed manually in `public/images/cards/`)
-- Admin panel
-- Export/import of progress
+- Export/import of user progress
+- Full admin panel
 
 ---
 
