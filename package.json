@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "seed:users": "tsx scripts/seed-users.ts",
+    "seed:cards": "tsx scripts/seed-cards.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

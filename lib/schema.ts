@@ -5,7 +5,7 @@ export const users = sqliteTable("users", {
   username: text("username").notNull().unique(),
   name: text("name"),
   password: text("password").notNull(),
-  createdAt: integer("createdAt", { mode: "timestamp_ms" }).$defaultFn(() => Date.now()),
+  createdAt: integer("createdAt", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date(Date.now())),
 })
 
 export const flashcards = sqliteTable("flashcards", {
@@ -18,7 +18,7 @@ export const flashcards = sqliteTable("flashcards", {
   answerImage: text("answerImage"),
   options: text("options"),
   sortOrder: integer("sortOrder").notNull().default(0),
-  createdAt: integer("createdAt", { mode: "timestamp_ms" }).$defaultFn(() => Date.now()),
+  createdAt: integer("createdAt", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date(Date.now())),
 })
 
 export const userProgress = sqliteTable("user_progress", {
@@ -26,5 +26,5 @@ export const userProgress = sqliteTable("user_progress", {
   userId: text("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
   flashcardId: text("flashcardId").notNull().references(() => flashcards.id, { onDelete: "cascade" }),
   status: text("status", { enum: ["unseen", "learned", "review"] }).notNull().default("unseen"),
-  updatedAt: integer("updatedAt", { mode: "timestamp_ms" }).$defaultFn(() => Date.now()),
+  updatedAt: integer("updatedAt", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date(Date.now())),
 }, (t) => [unique().on(t.userId, t.flashcardId)])
